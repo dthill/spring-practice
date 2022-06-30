@@ -3,5 +3,5 @@ USE ecommerce;
 
 insert into user (id, name)
 VALUES
-    (1, "Santa Clause")
-    (2, "Housecker");
+    (1, "Rob")
+    (2, "Bob");

@@ -12,19 +12,19 @@ public class UserService {
     @Autowired
     private UserRepository userRepository;
 
-    public List<User> getAllUsers(){
+    public List<User> getAllUsers() {
         return userRepository.findAll();
     }
 
-    public String updateUser(String idInput, String name){
+    public String updateUser(String idInput, String name) {
         Long id = null;
         try {
             id = Long.parseLong(idInput);
-        } catch (NumberFormatException e){
+        } catch (NumberFormatException e) {
             return "Id not valid format.";
         }
         User user = userRepository.findUserById(id);
-        if(user == null){
+        if (user == null) {
             return "Id not valid no existing user found.";
         }
         user.setName(name);
