@@ -5,6 +5,44 @@
     <title>Index</title>
 </head>
 <body>
+<h1>Users</h1>
 <a href="/users">Edit Users</a>
+<h2>Feedback</h2>
+<form action="/feedback" method="post" id="feedback-form">
+    <table>
+        <tr>
+            <td><label for="user">User ID</label></td>
+            <td><input type="text" name="user" id="user"></td>
+        </tr>
+        <tr>
+            <td><label for="feedback">Feedback</label></td>
+            <td><textarea name="feedback" id="feedback" cols="30" rows="10"></textarea></td>
+        </tr>
+        <tr>
+            <td><input type="submit" value="Submit"></td>
+        </tr>
+    </table>
+</form>
+<p id="form-info"></p>
+<script>
+    function handleFormSubmission(event){
+        event.preventDefault();
+        const feedback = {
+            feedback: event.target.feedback.value,
+            userId: event.target.user.value
+        }
+        console.log("Submitting: ", JSON.stringify(feedback));
+        fetch("/feedback",
+            {headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }, method: "POST", body: JSON.stringify(feedback)}).then(response => {
+            return response.text();
+        }).then(text => {
+            document.getElementById("form-info").innerText = text;
+        })
+    }
+    document.getElementById("feedback-form").addEventListener("submit", handleFormSubmission)
+</script>
 </body>
 </html>

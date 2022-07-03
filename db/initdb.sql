@@ -2,6 +2,4 @@ CREATE DATABASE IF NOT EXISTS ecommerce;
 USE ecommerce;
 
 insert into user (id, name)
-VALUES
-    (1, "Rob")
-    (2, "Bob");
+VALUES (1, "Rob");

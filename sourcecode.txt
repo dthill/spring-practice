@@ -1,0 +1,401 @@
+package pgfsd.springpractice.controller;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.*;
+import pgfsd.springpractice.dto.FeedbackFormDto;
+import pgfsd.springpractice.entities.Feedback;
+import pgfsd.springpractice.services.FeedbackService;
+
+@RestController
+public class FeedbackController {
+    @Autowired
+    private FeedbackService feedbackService;
+
+    @PostMapping("/feedback")
+    public ResponseEntity<String> postFeedback(@Validated @RequestBody FeedbackFormDto feedbackForm){
+        Feedback addedFeedback = feedbackService.addFeedback(feedbackForm);
+        return new ResponseEntity<>(
+                "The following feedback was saved: " + addedFeedback.toString(),
+                HttpStatus.CREATED);
+    }
+
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<String> feedbackValidationException(){
+        return new ResponseEntity<>(
+                "Feedback form not valid. Provide a feedback and a valid user.",
+                HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<String> feedbackIntegrityException(){
+        return new ResponseEntity<>(
+                "Feedback form not valid. Given user id not valid.",
+                HttpStatus.BAD_REQUEST);
+    }
+}
+
+
+package pgfsd.springpractice.controller;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import pgfsd.springpractice.services.UserService;
+
+@Controller
+public class UserController {
+
+    @Autowired
+    private UserService userService;
+
+    @GetMapping("/users")
+    public String getUsers(Model model) {
+        model.addAttribute("users", userService.getAllUsers());
+        return "users";
+    }
+
+    @PostMapping(value = "/edit-user",
+            consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    public String editUser(@RequestBody MultiValueMap<String, String> formData, RedirectAttributes redirectAttributes) {
+        String userAdded = userService.updateUser(formData.getFirst("user-id"), formData.getFirst("user-name"));
+        redirectAttributes.addFlashAttribute("userAdded", userAdded);
+        return "redirect:users";
+    }
+
+}
+
+
+package pgfsd.springpractice.dto;
+
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
+
+public class FeedbackFormDto {
+    @NotNull
+    @Size(min = 1, max = 1000)
+    private String feedback;
+
+    @NotNull
+    @Min(0)
+    private Long userId;
+
+    public String getFeedback() {
+        return feedback;
+    }
+
+    public void setFeedback(String feedback) {
+        this.feedback = feedback;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+}
+
+
+package pgfsd.springpractice.entities;
+
+
+
+
+import javax.persistence.*;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
+
+@Entity
+@Table(name = "feedback")
+public class Feedback {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+
+    @NotNull
+    @Size(min = 1, max = 1000)
+    @Lob
+    private String feedback;
+
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+
+
+    public Feedback() {
+    }
+
+    public Feedback(String feedback, User user) {
+        this.feedback = feedback;
+        this.user = user;
+    }
+
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
+    public String getFeedback() {
+        return feedback;
+    }
+
+    public void setFeedback(String feedback) {
+        this.feedback = feedback;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+
+    @Override
+    public String toString() {
+        return getFeedback() + " User: "+ getUser().getId();
+    }
+}
+
+
+package pgfsd.springpractice.entities;
+
+import javax.persistence.*;
+
+@Entity
+@Table(name = "user")
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id", nullable = false)
+    private Long id;
+    @Column(nullable = false)
+    private String name;
+
+    public User() {
+    }
+    public User(Long id, String name) {
+        this.id = id;
+        this.name = name;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+}
+
+package pgfsd.springpractice.repositories;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import pgfsd.springpractice.entities.Feedback;
+
+public interface FeedbackRepository extends JpaRepository<Feedback, Integer> {
+    public Feedback save(Feedback feedback);
+}package pgfsd.springpractice.repositories;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import pgfsd.springpractice.entities.User;
+
+import java.util.List;
+
+public interface UserRepository extends JpaRepository<User, Long> {
+    List<User> findAll();
+
+    User findUserById(Long id);
+}
+
+package pgfsd.springpractice.services;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import pgfsd.springpractice.dto.FeedbackFormDto;
+import pgfsd.springpractice.entities.Feedback;
+import pgfsd.springpractice.entities.User;
+import pgfsd.springpractice.repositories.FeedbackRepository;
+
+import javax.transaction.Transactional;
+
+@Service
+public class FeedbackService {
+
+    @Autowired
+    private FeedbackRepository feedbackRepository;
+
+    @Transactional
+    public Feedback addFeedback(FeedbackFormDto feedbackForm){
+        return feedbackRepository.save(
+                new Feedback(feedbackForm.getFeedback(), new User(feedbackForm.getUserId(), ""))
+        );
+    }
+}
+
+
+package pgfsd.springpractice.services;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import pgfsd.springpractice.entities.User;
+import pgfsd.springpractice.repositories.UserRepository;
+
+import java.util.List;
+
+@Component
+public class UserService {
+    @Autowired
+    private UserRepository userRepository;
+
+    public List<User> getAllUsers() {
+        return userRepository.findAll();
+    }
+
+    public String updateUser(String idInput, String name) {
+        Long id = null;
+        try {
+            id = Long.parseLong(idInput);
+        } catch (NumberFormatException e) {
+            return "Id not valid format.";
+        }
+        User user = userRepository.findUserById(id);
+        if (user == null) {
+            return "Id not valid no existing user found.";
+        }
+        user.setName(name);
+        userRepository.save(user);
+        return "User updated successfully.";
+    }
+
+}
+
+
+package pgfsd.springpractice;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class SpringPracticeApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(SpringPracticeApplication.class, args);
+    }
+
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Index</title>
+</head>
+<body>
+<h1>Users</h1>
+<a href="/users">Edit Users</a>
+<h2>Feedback</h2>
+<form action="/feedback" method="post" id="feedback-form">
+    <table>
+        <tr>
+            <td><label for="user">User ID</label></td>
+            <td><input type="text" name="user" id="user"></td>
+        </tr>
+        <tr>
+            <td><label for="feedback">Feedback</label></td>
+            <td><textarea name="feedback" id="feedback" cols="30" rows="10"></textarea></td>
+        </tr>
+        <tr>
+            <td><input type="submit" value="Submit"></td>
+        </tr>
+    </table>
+</form>
+<p id="form-info"></p>
+<script>
+    function handleFormSubmission(event){
+        event.preventDefault();
+        const feedback = {
+            feedback: event.target.feedback.value,
+            userId: event.target.user.value
+        }
+        console.log("Submitting: ", JSON.stringify(feedback));
+        fetch("/feedback",
+            {headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }, method: "POST", body: JSON.stringify(feedback)}).then(response => {
+            return response.text();
+        }).then(text => {
+            document.getElementById("form-info").innerText = text;
+        })
+    }
+    document.getElementById("feedback-form").addEventListener("submit", handleFormSubmission)
+</script>
+</body>
+</html>
+
+
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <title>Users</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+</head>
+<body>
+<h1>Users</h1>
+<p th:if="${users == null || users.size() == 0}">
+    No users found
+</p>
+<table>
+    <tr th:each="user : ${users}">
+        <td th:text="${user.id}"></td>
+        <td th:text="${user.name}"></td>
+    </tr>
+</table>
+<h2>Edit User</h2>
+<form action="/edit-user" method="post">
+    <label for="user-id">ID</label>
+    <input type="tel" id="user-id" name="user-id">
+    <label for="user-name">Name</label>
+    <input type="text" id="user-name" name="user-name">
+    <input type="submit" value="Update">
+</form>
+<p th:text="${userAdded}"></p>
+</body>
+</html>
+
+
+spring.datasource.url=jdbc:mysql://localhost:3306/ecommerce
+spring.datasource.username=root
+spring.datasource.password=test1234
+spring.jpa.show-sql = true
+spring.jpa.database-platform = org.hibernate.dialect.MySQL8Dialect
+spring.jpa.hibernate.ddl-auto=update
+spring.datasource.driverClassName=com.mysql.cj.jdbc.Driver
