@@ -1,7 +1,6 @@
 package pgfsd.springpractice.entities;
 
 import javax.persistence.*;
-
 @Entity
 @Table(name = "user")
 public class User {
@@ -11,12 +10,19 @@ public class User {
     private Long id;
     @Column(nullable = false)
     private String name;
+    private String password;
 
     public User() {
     }
     public User(Long id, String name) {
         this.id = id;
         this.name = name;
+    }
+
+    public User(Long id, String name, String password) {
+        this.id = id;
+        this.name = name;
+        this.password = password;
     }
 
     public Long getId() {
@@ -33,5 +39,13 @@ public class User {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
     }
 }

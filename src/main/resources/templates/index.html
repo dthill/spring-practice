@@ -1,12 +1,18 @@
 <!DOCTYPE html>
-<html lang="en">
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Index</title>
 </head>
 <body>
 <h1>Users</h1>
-<a href="/users">Edit Users</a>
+<p th:if="${session.loggedUser == null}">
+    <a href="/login">Login</a>
+</p>
+<p th:if="${session.loggedUser != null}">
+    <a href="/users">Edit Users</a>
+    <a href="/logout">Logout</a>
+</p>
 <h2>Feedback</h2>
 <form action="/feedback" method="post" id="feedback-form">
     <table>
