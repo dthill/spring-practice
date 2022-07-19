@@ -11,14 +11,15 @@ import javax.transaction.Transactional;
 @Service
 public class LoginService {
 
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
+
     @Autowired
     public LoginService(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 
     @Transactional
-    public User login(LoginFormDto user){
+    public User login(LoginFormDto user) {
         return userRepository.findUserByIdAndPassword(user.getId(), user.getPassword());
     }
 }

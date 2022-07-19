@@ -1,4 +1,57 @@
-package pgfsd.springpractice.controller;
+package pgfsd.springpractice.configuration;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.crypto.password.NoOpPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+
+@Configuration
+public class SecurityConfiguration {
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+                .authorizeRequests()
+                .antMatchers("/").permitAll()
+                .anyRequest().authenticated()
+                .and()
+                .formLogin()
+                .loginPage("/login")
+                .permitAll()
+                .and()
+                .logout()
+                .permitAll()
+                .logoutRequestMatcher(new AntPathRequestMatcher("/logout", "GET"));
+        return http.build();
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return NoOpPasswordEncoder.getInstance();
+    }
+}package pgfsd.springpractice.configuration;
+
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
+import org.springframework.web.servlet.config.annotation.EnableWebMvc;
+import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
+
+@Configuration
+@EnableWebMvc
+public class WebMvcConfiguration implements WebMvcConfigurer {
+
+    @Override
+    public void addViewControllers(ViewControllerRegistry registry) {
+        registry.addViewController("/login").setViewName("login");
+        registry.setOrder(Ordered.HIGHEST_PRECEDENCE);
+    }
+}package pgfsd.springpractice.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -6,7 +59,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
 import pgfsd.springpractice.dto.FeedbackFormDto;
 import pgfsd.springpractice.entities.Feedback;
 import pgfsd.springpractice.services.FeedbackService;
@@ -17,7 +73,7 @@ public class FeedbackController {
     private FeedbackService feedbackService;
 
     @PostMapping("/feedback")
-    public ResponseEntity<String> postFeedback(@Validated @RequestBody FeedbackFormDto feedbackForm){
+    public ResponseEntity<String> postFeedback(@Validated @RequestBody FeedbackFormDto feedbackForm) {
         Feedback addedFeedback = feedbackService.addFeedback(feedbackForm);
         return new ResponseEntity<>(
                 "The following feedback was saved: " + addedFeedback.toString(),
@@ -26,14 +82,14 @@ public class FeedbackController {
 
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<String> feedbackValidationException(){
+    public ResponseEntity<String> feedbackValidationException() {
         return new ResponseEntity<>(
                 "Feedback form not valid. Provide a feedback and a valid user.",
                 HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<String> feedbackIntegrityException(){
+    public ResponseEntity<String> feedbackIntegrityException() {
         return new ResponseEntity<>(
                 "Feedback form not valid. Given user id not valid.",
                 HttpStatus.BAD_REQUEST);
@@ -41,73 +97,21 @@ public class FeedbackController {
 }
 package pgfsd.springpractice.controller;
 
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
 @Controller
 public class IndexController {
     @GetMapping("/")
-    public String index(){
-        return "index";
-    }
-}
-package pgfsd.springpractice.controller;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
-import pgfsd.springpractice.dto.LoginFormDto;
-import pgfsd.springpractice.entities.User;
-import pgfsd.springpractice.services.LoginService;
-
-import javax.servlet.http.HttpSession;
-
-@Controller
-public class LoginController {
-    private LoginService loginService;
-
-    @Autowired
-    public LoginController(LoginService loginService) {
-        this.loginService = loginService;
-    }
-
-    @GetMapping("/login")
-    public String getLogin(Model model){
-        model.addAttribute("loginForm", new LoginFormDto());
-        return "login";
-    }
-
-    @PostMapping(value = "/login")
-    public String login(@Validated @ModelAttribute LoginFormDto loginFormDto, Model model, HttpSession httpSession){
-        User loggedUser = loginService.login(loginFormDto);
-        if(loggedUser == null){
-            httpSession.invalidate();
-            model.addAttribute("loginError", "Unable to login");
-            model.addAttribute("loginForm", new LoginFormDto(loginFormDto.getId()));
-            return "login";
+    public String index(Model model) {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if(principal instanceof UserDetails){
+            model.addAttribute("user", ((UserDetails)principal).getUsername());
         }
-        httpSession.setAttribute("loggedUser", loggedUser );
-        return "redirect:";
-    }
-
-    @GetMapping("/logout")
-    public String logout(HttpSession httpSession, Model model){
-        httpSession.invalidate();
         return "index";
-    }
-
-    @ExceptionHandler(Exception.class)
-    public String feedbackIntegrityException(HttpSession httpSession, Model model){
-        httpSession.invalidate();
-        model.addAttribute("loginError", "Unable to login");
-        model.addAttribute("loginForm", new LoginFormDto());
-        return "login";
     }
 }
 package pgfsd.springpractice.controller;
@@ -178,7 +182,6 @@ public class FeedbackFormDto {
 package pgfsd.springpractice.dto;
 
 import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
 public class LoginFormDto {
@@ -217,8 +220,6 @@ public class LoginFormDto {
     }
 }
 package pgfsd.springpractice.entities;
-
-
 
 
 import javax.persistence.*;
@@ -278,32 +279,44 @@ public class Feedback {
 
     @Override
     public String toString() {
-        return getFeedback() + " User: "+ getUser().getId();
+        return getFeedback() + " User: " + getUser().getId();
     }
 }package pgfsd.springpractice.entities;
 
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+
 import javax.persistence.*;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
+import java.util.Collection;
+import java.util.Collections;
+
 @Entity
 @Table(name = "user")
-public class User {
+public class User implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
     private Long id;
-    @Column(nullable = false)
-    private String name;
+    @Column(unique = true)
+    @NotNull
+    @Size(min = 3, max = 50)
+    private String username;
     private String password;
 
     public User() {
     }
-    public User(Long id, String name) {
+
+    public User(Long id, String username) {
         this.id = id;
-        this.name = name;
+        this.username = username;
     }
 
-    public User(Long id, String name, String password) {
+    public User(Long id, String username, String password) {
         this.id = id;
-        this.name = name;
+        this.username = username;
         this.password = password;
     }
 
@@ -315,12 +328,37 @@ public class User {
         this.id = id;
     }
 
-    public String getName() {
-        return name;
+    public String getUsername() {
+        return username;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setUsername(String name) {
+        this.username = name;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return true;
+    }
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return Collections.singleton(new SimpleGrantedAuthority("USER"));
     }
 
     public String getPassword() {
@@ -336,7 +374,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import pgfsd.springpractice.entities.Feedback;
 
 public interface FeedbackRepository extends JpaRepository<Feedback, Integer> {
-    public Feedback save(Feedback feedback);
+    Feedback save(Feedback feedback);
 }package pgfsd.springpractice.repositories;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -350,6 +388,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     User findUserById(Long id);
 
     User findUserByIdAndPassword(Long id, String password);
+
+    User findUserByUsername(String username);
 }package pgfsd.springpractice.services;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -368,7 +408,7 @@ public class FeedbackService {
     private FeedbackRepository feedbackRepository;
 
     @Transactional
-    public Feedback addFeedback(FeedbackFormDto feedbackForm){
+    public Feedback addFeedback(FeedbackFormDto feedbackForm) {
         return feedbackRepository.save(
                 new Feedback(feedbackForm.getFeedback(), new User(feedbackForm.getUserId(), ""))
         );
@@ -387,28 +427,32 @@ import javax.transaction.Transactional;
 @Service
 public class LoginService {
 
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
+
     @Autowired
     public LoginService(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 
     @Transactional
-    public User login(LoginFormDto user){
+    public User login(LoginFormDto user) {
         return userRepository.findUserByIdAndPassword(user.getId(), user.getPassword());
     }
 }
 package pgfsd.springpractice.services;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Service;
 import pgfsd.springpractice.entities.User;
 import pgfsd.springpractice.repositories.UserRepository;
 
 import java.util.List;
 
-@Component
-public class UserService {
+@Service
+public class UserService implements UserDetailsService {
     @Autowired
     private UserRepository userRepository;
 
@@ -427,9 +471,18 @@ public class UserService {
         if (user == null) {
             return "Id not valid no existing user found.";
         }
-        user.setName(name);
+        user.setUsername(name);
         userRepository.save(user);
         return "User updated successfully.";
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String username) {
+        User user = userRepository.findUserByUsername(username);
+        if (user == null) {
+            throw new UsernameNotFoundException(username);
+        }
+        return user;
     }
 
 }
@@ -454,13 +507,16 @@ public class SpringPracticeApplication {
 </head>
 <body>
 <h1>Users</h1>
-<p th:if="${session.loggedUser == null}">
+<div th:if="${user == null}">
     <a href="/login">Login</a>
-</p>
-<p th:if="${session.loggedUser != null}">
+</div>
+<div th:if="${user != null}">
+    <p>Logged in as
+        <span th:text="${user}"></span>
+    </p>
     <a href="/users">Edit Users</a>
     <a href="/logout">Logout</a>
-</p>
+</div>
 <h2>Feedback</h2>
 <form action="/feedback" method="post" id="feedback-form">
     <table>
@@ -499,26 +555,55 @@ public class SpringPracticeApplication {
     document.getElementById("feedback-form").addEventListener("submit", handleFormSubmission)
 </script>
 </body>
-</html><!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
+</html>
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.w3.org/1999/xhtml">
 <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta charset="UTF-8">
     <title>Login</title>
 </head>
 <body>
 <h1>Login</h1>
-<form action="#" th:action="@{/login}" th:object="${loginForm}" method="post">
-    <label for="id">User ID</label>
-    <input type="text" id="id" th:field="*{id}">
-    <br>
-    <label for="password">Password</label>
-    <input type="password" id="password" th:field="*{password}">
-    <br>
-    <input type="submit" value="Login">
-</form>
-<p th:text="${loginError}"></p>
+<div sec:authorize="isAuthenticated()">
+    <p>You are already logged in</p>
+    <a href="/logout">Logout</a>
+</div>
+<div sec:authorize="isAnonymous()">
+    <form  method="post" th:action="@{/login}">
+        <p th:if="${param.error}">
+            Invalid username and password.
+        </p>
+        <p th:if="${param.logout}">
+            You have been logged out.
+        </p>
+        <table>
+            <tr>
+                <td>
+                    <label for="username">Username</label>
+                </td>
+                <td>
+                    <input id="username" name="username" type="text"/>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <label for="password">Password</label>
+                </td>
+                <td>
+                    <input id="password" name="password" type="password"/>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <input type="submit" value="Login">
+                </td>
+            </tr>
+        </table>
+    </form>
+</div>
 </body>
-</html><!DOCTYPE HTML>
+</html>
+<!DOCTYPE HTML>
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head>
     <title>Users</title>
@@ -532,7 +617,7 @@ public class SpringPracticeApplication {
 <table>
     <tr th:each="user : ${users}">
         <td th:text="${user.id}"></td>
-        <td th:text="${user.name}"></td>
+        <td th:text="${user.username}"></td>
     </tr>
 </table>
 <h2>Edit User</h2>
@@ -547,7 +632,6 @@ public class SpringPracticeApplication {
 </body>
 </html>
 
-
 spring.datasource.url=jdbc:mysql://localhost:3306/ecommerce
 spring.datasource.username=root
 spring.datasource.password=test1234
@@ -555,3 +639,4 @@ spring.jpa.show-sql = true
 spring.jpa.database-platform = org.hibernate.dialect.MySQL8Dialect
 spring.jpa.hibernate.ddl-auto=update
 spring.datasource.driverClassName=com.mysql.cj.jdbc.Driver
+logging.level.org.springframework.security=DEBUG

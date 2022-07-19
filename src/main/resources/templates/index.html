@@ -6,13 +6,16 @@
 </head>
 <body>
 <h1>Users</h1>
-<p th:if="${session.loggedUser == null}">
+<div th:if="${user == null}">
     <a href="/login">Login</a>
-</p>
-<p th:if="${session.loggedUser != null}">
+</div>
+<div th:if="${user != null}">
+    <p>Logged in as
+        <span th:text="${user}"></span>
+    </p>
     <a href="/users">Edit Users</a>
     <a href="/logout">Logout</a>
-</p>
+</div>
 <h2>Feedback</h2>
 <form action="/feedback" method="post" id="feedback-form">
     <table>

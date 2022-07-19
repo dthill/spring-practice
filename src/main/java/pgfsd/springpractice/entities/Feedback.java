@@ -1,8 +1,6 @@
 package pgfsd.springpractice.entities;
 
 
-
-
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
@@ -60,6 +58,6 @@ public class Feedback {
 
     @Override
     public String toString() {
-        return getFeedback() + " User: "+ getUser().getId();
+        return getFeedback() + " User: " + getUser().getId();
     }
 }
